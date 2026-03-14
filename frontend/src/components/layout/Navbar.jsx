@@ -10,7 +10,7 @@ function roleLabel(role) {
       return "Admin";
     case "headteacher":
       return "Headteacher";
-    case "assistant":
+    case "assistantHeadteacher":
       return "Assistant Head";
     case "teacher":
       return "Class Teacher";
@@ -32,16 +32,7 @@ export default function Navbar({ onToggleSidebar }) {
         const data = await listNotifications({ limit: 5 });
         if (!ignore) setItems(Array.isArray(data) ? data : data.items || []);
       } catch {
-        if (!ignore) {
-          setItems([
-            {
-              id: "n1",
-              message: "Welcome. This is a demo notification while the backend is offline.",
-              createdAt: new Date().toISOString(),
-              read: false,
-            },
-          ]);
-        }
+        if (!ignore) setItems([]);
       }
     })();
     return () => {
@@ -60,16 +51,24 @@ export default function Navbar({ onToggleSidebar }) {
           onClick={onToggleSidebar}
           aria-label="Open sidebar"
         >
-          ☰
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            className="h-5 w-5"
+            aria-hidden="true"
+          >
+            <path d="M4 6h16" />
+            <path d="M4 12h16" />
+            <path d="M4 18h16" />
+          </svg>
         </button>
 
         <div className="min-w-0">
-          <div className="font-display text-lg font-semibold text-slate-900 md:text-xl">
-            Anglican School
-          </div>
-          <div className="truncate text-xs text-slate-600">
-            {roleLabel(role)} dashboard and workflows
-          </div>
+          <div className="font-display text-lg font-semibold text-slate-900 md:text-xl">Anglican School</div>
+          <div className="truncate text-xs text-slate-600">{roleLabel(role)} dashboard and workflows</div>
         </div>
 
         <div className="ml-auto flex items-center gap-2">
@@ -84,12 +83,27 @@ export default function Navbar({ onToggleSidebar }) {
               aria-haspopup="menu"
               aria-expanded={open}
             >
-              Notifications
-              {unreadCount > 0 && (
-                <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[color:var(--brand)] px-1 text-xs font-semibold text-white">
-                  {unreadCount}
-                </span>
-              )}
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                className="h-5 w-5"
+                aria-hidden="true"
+              >
+                <path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 7h18s-3 0-3-7" />
+                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+              </svg>
+              <span className="ml-2 hidden font-semibold md:inline">Alerts</span>
+              <span
+                className={cx(
+                  "ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-xs font-semibold text-white",
+                  unreadCount > 0 ? "bg-[color:var(--brand)]" : "bg-slate-400"
+                )}
+                aria-label={`Unread notifications: ${unreadCount}`}
+              >
+                {unreadCount}
+              </span>
             </button>
 
             {open && (
@@ -113,7 +127,7 @@ export default function Navbar({ onToggleSidebar }) {
                   ) : (
                     items.map((n) => (
                       <div
-                        key={n.id}
+                        key={n._id || n.id}
                         className={cx(
                           "rounded-2xl p-3 text-sm",
                           n.read ? "text-slate-700" : "bg-[color:var(--bg0)] text-slate-900"
@@ -149,3 +163,4 @@ export default function Navbar({ onToggleSidebar }) {
     </header>
   );
 }
+

@@ -3,9 +3,17 @@ import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, BarChart, Bar, XAxis
 import PageHeader from "../../components/common/PageHeader";
 import Panel from "../../components/common/Panel";
 import { getReports } from "../../services/reportService";
+import { useAuth } from "../../context/AuthContext";
+import { listApplicants } from "../../services/applicantService";
+import { listPayments } from "../../services/paymentService";
+import { downloadAdmissionConfirmation } from "../../services/admissionService";
+import { formatDate } from "../../utils/helpers";
 
 export default function Reports() {
   const [report, setReport] = useState(null);
+  const { role } = useAuth();
+  const [myApplicants, setMyApplicants] = useState([]);
+  const [myPayments, setMyPayments] = useState([]);
 
   useEffect(() => {
     let ignore = false;
@@ -21,6 +29,30 @@ export default function Reports() {
       ignore = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (role !== "parent") return;
+    let ignore = false;
+    (async () => {
+      try {
+        const [a, p] = await Promise.all([listApplicants(), listPayments()]);
+        const aItems = Array.isArray(a) ? a : a.items || [];
+        const pItems = Array.isArray(p) ? p : p.items || [];
+        if (!ignore) {
+          setMyApplicants(aItems);
+          setMyPayments(pItems);
+        }
+      } catch {
+        if (!ignore) {
+          setMyApplicants([]);
+          setMyPayments([]);
+        }
+      }
+    })();
+    return () => {
+      ignore = true;
+    };
+  }, [role]);
 
   const byClass = useMemo(
     () => [
@@ -44,6 +76,87 @@ export default function Reports() {
         title="Reports"
         subtitle="Applicants by class, exam performance, admissions statistics, and payments summary."
       />
+
+      {role === "parent" ? (
+        <Panel className="p-5">
+          <div className="font-display text-lg font-semibold text-slate-900">My Downloads</div>
+          <div className="mt-2 text-sm text-slate-700">
+            Download your admission confirmation (after admission) and view payment history.
+          </div>
+
+          <div className="mt-4 grid gap-3 lg:grid-cols-2">
+            <div className="rounded-3xl bg-white/60 p-4">
+              <div className="font-semibold text-slate-900">Admission Confirmation</div>
+              <div className="mt-2 space-y-2 text-sm text-slate-700">
+                {myApplicants.length ? (
+                  myApplicants.map((a) => (
+                    <div key={a._id || a.id} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-white/70 p-3">
+                      <div className="min-w-0">
+                        <div className="truncate font-semibold text-slate-900">{a.fullName}</div>
+                        <div className="text-xs text-slate-600">
+                          Status: {String(a.status || "—").replaceAll("_", " ")} · {formatDate(a.createdAt)}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className="inline-flex h-9 items-center justify-center rounded-2xl bg-[color:var(--brand)] px-3 text-xs font-semibold text-white hover:brightness-110 disabled:opacity-60"
+                        disabled={String(a.status || "") !== "admitted"}
+                        onClick={() => {
+                          (async () => {
+                            try {
+                              const blob = await downloadAdmissionConfirmation(a._id || a.id);
+                              const url = URL.createObjectURL(blob);
+                              const el = document.createElement("a");
+                              el.href = url;
+                              el.download = `admission_confirmation_${a.fullName.replaceAll(" ", "_")}.txt`;
+                              document.body.appendChild(el);
+                              el.click();
+                              el.remove();
+                              URL.revokeObjectURL(url);
+                            } catch {
+                              alert("Download failed.");
+                            }
+                          })();
+                        }}
+                      >
+                        Download
+                      </button>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-slate-600">No applicants linked to your account.</div>
+                )}
+              </div>
+              <div className="mt-2 text-xs text-slate-600">
+                Download is enabled only after your child is admitted.
+              </div>
+            </div>
+
+            <div className="rounded-3xl bg-white/60 p-4">
+              <div className="font-semibold text-slate-900">Payment History</div>
+              <div className="mt-2 space-y-2 text-sm text-slate-700">
+                {myPayments.length ? (
+                  myPayments.slice(0, 8).map((p) => (
+                    <div key={p._id || p.id} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-white/70 p-3">
+                      <div className="min-w-0">
+                        <div className="truncate font-semibold text-slate-900">
+                          {p.applicant?.fullName || "Payment"}
+                        </div>
+                        <div className="text-xs text-slate-600">
+                          {String(p.status || "—").toUpperCase()} · {formatDate(p.paidAt || p.createdAt)}
+                        </div>
+                      </div>
+                      <div className="text-xs text-slate-600">{p.reference || "—"}</div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-slate-600">No payments found.</div>
+                )}
+              </div>
+            </div>
+          </div>
+        </Panel>
+      ) : null}
 
       <div className="grid gap-3 lg:grid-cols-2">
         <Panel className="p-4">

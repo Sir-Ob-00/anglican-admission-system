@@ -5,11 +5,6 @@ import Table from "../../components/common/Table";
 import Badge from "../../components/common/Badge";
 import { listExamResults } from "../../services/examResultService";
 
-const demo = [
-  { id: "r1", applicant: "Jane N. Okafor", score: 78, status: "passed" },
-  { id: "r2", applicant: "David A. Mensah", score: 44, status: "failed" },
-];
-
 export default function ExamResults() {
   const { id } = useParams();
   const [rows, setRows] = useState([]);
@@ -31,7 +26,7 @@ export default function ExamResults() {
           );
         }
       } catch {
-        if (!ignore) setRows(demo);
+        if (!ignore) setRows([]);
       }
     })();
     return () => {

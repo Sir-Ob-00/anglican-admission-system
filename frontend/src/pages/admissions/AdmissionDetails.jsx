@@ -65,7 +65,7 @@ export default function AdmissionDetails() {
           <div className="rounded-2xl bg-white/60 p-3 md:col-span-2">
             <div className="text-xs font-semibold uppercase tracking-wide text-slate-600">Notes</div>
             <div className="mt-1 text-sm text-slate-800">
-              This is a UI foundation. Connect to backend to show the actual admission workflow data.
+              Admission record details for this applicant.
             </div>
           </div>
         </div>

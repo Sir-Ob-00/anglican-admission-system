@@ -11,20 +11,13 @@ function secondsToClock(s) {
   return `${String(m).padStart(2, "0")}:${String(r).padStart(2, "0")}`;
 }
 
-const demoQuestions = [
-  { id: "q1", text: "What is 12 + 8?", options: ["18", "20", "22", "24"], correct: 1 },
-  { id: "q2", text: "What is 5 × 6?", options: ["11", "20", "30", "60"], correct: 2 },
-  { id: "q3", text: "Which is a vowel?", options: ["B", "C", "A", "D"], correct: 2 },
-  { id: "q4", text: "What comes next: 2, 4, 6, ...?", options: ["7", "8", "9", "10"], correct: 1 },
-  { id: "q5", text: "Which word is a noun?", options: ["Run", "Happy", "School", "Quickly"], correct: 2 },
-];
-
 export default function TakeExam() {
   const { id } = useParams();
   const navigate = useNavigate();
   const storageKey = `aas_exam_submitted_${id}`;
   const alreadySubmitted = localStorage.getItem(storageKey) === "1";
 
+  const [exam, setExam] = useState(null);
   const [questions, setQuestions] = useState([]);
   const [applicantId, setApplicantId] = useState("");
   const [fullName, setFullName] = useState("");
@@ -32,30 +25,48 @@ export default function TakeExam() {
   const [answers, setAnswers] = useState(() => ({}));
   const [secondsLeft, setSecondsLeft] = useState(15 * 60);
   const [submitting, setSubmitting] = useState(false);
+  const [loadError, setLoadError] = useState("");
+  const [submitError, setSubmitError] = useState("");
   const submitOnce = useRef(false);
 
   useEffect(() => {
     let ignore = false;
     (async () => {
       try {
-        const [exam, qs] = await Promise.all([
-          getExam(id),
-          getExamQuestions(id, { shuffle: true }),
-        ]);
+        setLoadError("");
+        setSubmitError("");
+        const [ex, qs] = await Promise.all([getExam(id), getExamQuestions(id, { shuffle: true })]);
         const items = Array.isArray(qs) ? qs : qs.items || [];
-        if (!ignore) {
-          setQuestions(items.length ? items : demoQuestions);
-          const duration = Number(exam?.durationMinutes || 15);
-          setSecondsLeft(duration * 60);
-        }
+        if (ignore) return;
+        setExam(ex || null);
+        setQuestions(items);
+        setIndex(0);
+        const duration = Number(ex?.durationMinutes || 15);
+        setSecondsLeft(duration * 60);
+        if (!items.length) setLoadError("No questions found for this exam.");
       } catch {
-        if (!ignore) setQuestions(demoQuestions);
+        if (!ignore) {
+          setExam(null);
+          setQuestions([]);
+          setLoadError("Failed to load this exam. Check your backend API.");
+        }
       }
     })();
     return () => {
       ignore = true;
     };
   }, [id]);
+
+  useEffect(() => {
+    if (alreadySubmitted) return;
+    const onBeforeUnload = (e) => {
+      e.preventDefault();
+      // Triggers the native confirm dialog (browsers ignore custom text).
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [alreadySubmitted]);
 
   useEffect(() => {
     if (alreadySubmitted) return;
@@ -75,8 +86,10 @@ export default function TakeExam() {
 
   async function handleSubmit(reason) {
     if (submitOnce.current) return;
+    if (!questions.length) return;
     submitOnce.current = true;
     setSubmitting(true);
+    setSubmitError("");
     try {
       await submitExam({
         examId: id,
@@ -86,11 +99,12 @@ export default function TakeExam() {
         answers,
       });
       localStorage.setItem(storageKey, "1");
-    } catch {
-      localStorage.setItem(storageKey, "1");
+      navigate(`/exams/${id}/results`, { replace: true });
+    } catch (e) {
+      submitOnce.current = false;
+      setSubmitError(e?.response?.data?.message || "Submission failed. Please try again.");
     } finally {
       setSubmitting(false);
-      navigate(`/exams/${id}/results`);
     }
   }
 
@@ -99,7 +113,7 @@ export default function TakeExam() {
   return (
     <div className="space-y-4">
       <PageHeader
-        title="Take Exam"
+        title={exam?.title ? `Take Exam: ${exam.title}` : "Take Exam"}
         subtitle="Timer, question navigation, and auto-submit at time end."
         right={
           <Badge tone={alreadySubmitted ? "success" : secondsLeft < 60 ? "danger" : "warning"}>
@@ -111,15 +125,25 @@ export default function TakeExam() {
       {alreadySubmitted ? (
         <Panel className="p-6">
           <div className="font-display text-xl font-semibold text-slate-900">Already submitted</div>
-          <div className="mt-2 text-sm text-slate-600">
-            Multiple submissions are blocked for this exam attempt.
-          </div>
+          <div className="mt-2 text-sm text-slate-600">Multiple submissions are blocked for this exam attempt.</div>
           <button
             type="button"
             className="mt-4 inline-flex h-11 items-center justify-center rounded-2xl bg-[color:var(--brand)] px-5 text-sm font-semibold text-white shadow-sm hover:brightness-110"
             onClick={() => navigate(`/exams/${id}/results`)}
           >
             View results
+          </button>
+        </Panel>
+      ) : loadError ? (
+        <Panel className="p-6">
+          <div className="font-display text-xl font-semibold text-slate-900">Exam not ready</div>
+          <div className="mt-2 text-sm text-slate-600">{loadError}</div>
+          <button
+            type="button"
+            className="mt-4 inline-flex h-11 items-center justify-center rounded-2xl bg-slate-900/5 px-5 text-sm font-semibold text-slate-800 hover:bg-slate-900/10"
+            onClick={() => navigate("/exams")}
+          >
+            Back to exams
           </button>
         </Panel>
       ) : (
@@ -146,12 +170,21 @@ export default function TakeExam() {
               </div>
             </div>
 
+            {submitError ? (
+              <div
+                role="alert"
+                className="mb-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800"
+              >
+                {submitError}
+              </div>
+            ) : null}
+
             <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="text-xs font-semibold uppercase tracking-wide text-slate-600">
                   Question {index + 1} of {questions.length}
                 </div>
-                <div className="mt-2 font-display text-xl font-semibold text-slate-900">{q.text}</div>
+                <div className="mt-2 font-display text-xl font-semibold text-slate-900">{q?.text || "--"}</div>
               </div>
               <button
                 type="button"
@@ -164,12 +197,12 @@ export default function TakeExam() {
             </div>
 
             <div className="mt-4 grid gap-2 sm:grid-cols-2">
-              {q.options.map((opt, optIdx) => {
-                const qid = q._id || q.id;
+              {(q?.options || []).map((opt, optIdx) => {
+                const qid = q?._id || q?.id;
                 const picked = answers[qid] === optIdx;
                 return (
                   <button
-                    key={opt}
+                    key={`${qid}:${opt}`}
                     type="button"
                     className={
                       picked
@@ -238,3 +271,4 @@ export default function TakeExam() {
     </div>
   );
 }
+

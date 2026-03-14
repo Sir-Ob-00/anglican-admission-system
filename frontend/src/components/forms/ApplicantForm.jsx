@@ -11,6 +11,7 @@ export default function ApplicantForm({ initialValues, onSubmit, submitLabel = "
       dateOfBirth: initialValues?.dateOfBirth || "",
       gender: initialValues?.gender || "male",
       classApplyingFor: initialValues?.classApplyingFor || "",
+      parentName: initialValues?.parentName || "",
       parentContact: initialValues?.parentContact || "",
       address: initialValues?.address || "",
     },
@@ -64,6 +65,15 @@ export default function ApplicantForm({ initialValues, onSubmit, submitLabel = "
         {errors.classApplyingFor && (
           <div className="mt-1 text-xs text-rose-700">{errors.classApplyingFor.message}</div>
         )}
+      </div>
+
+      <div>
+        <label className="text-sm font-semibold text-slate-800">Parent Name</label>
+        <input
+          className="mt-1 h-11 w-full rounded-2xl border border-slate-200/70 bg-white/80 px-3 text-slate-900 outline-none focus:border-[color:var(--brand)]"
+          {...register("parentName")}
+          placeholder="e.g., Mrs. Okafor"
+        />
       </div>
 
       <div>

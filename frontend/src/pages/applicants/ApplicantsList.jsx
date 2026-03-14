@@ -1,56 +1,43 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import Table from "../../components/common/Table";
 import Badge from "../../components/common/Badge";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
 import PageHeader from "../../components/common/PageHeader";
 import { formatDate, statusLabel, statusTone } from "../../utils/helpers";
 import * as applicantService from "../../services/applicantService";
-
-const demo = [
-  {
-    id: "a1",
-    fullName: "Jane N. Okafor",
-    classApplyingFor: "Primary 3",
-    status: "pending_review",
-    createdAt: "2026-03-08T10:00:00.000Z",
-  },
-  {
-    id: "a2",
-    fullName: "David A. Mensah",
-    classApplyingFor: "Primary 5",
-    status: "exam_scheduled",
-    createdAt: "2026-03-06T10:00:00.000Z",
-  },
-  {
-    id: "a3",
-    fullName: "Grace I. Nwosu",
-    classApplyingFor: "JSS 1",
-    status: "awaiting_payment",
-    createdAt: "2026-03-03T10:00:00.000Z",
-  },
-];
+import { useAuth } from "../../context/AuthContext";
 
 export default function ApplicantsList() {
   const navigate = useNavigate();
+  const { role } = useAuth();
+  const [searchParams] = useSearchParams();
   const [rows, setRows] = useState([]);
   const [confirm, setConfirm] = useState(null);
+  const status = searchParams.get("status") || "";
 
   useEffect(() => {
     let ignore = false;
     (async () => {
       try {
-        const data = await applicantService.listApplicants();
+        const data = await applicantService.listApplicants(status ? { status } : undefined);
         const items = Array.isArray(data) ? data : data.items || [];
-        if (!ignore) setRows(items);
+        if (!ignore) {
+          setRows(
+            items.map((a) => ({
+              ...a,
+              id: a.id || a._id,
+            }))
+          );
+        }
       } catch {
-        if (!ignore) setRows(demo);
+        if (!ignore) setRows([]);
       }
     })();
     return () => {
       ignore = true;
     };
-  }, []);
+  }, [status]);
 
   const columns = useMemo(
     () => [
@@ -77,21 +64,23 @@ export default function ApplicantsList() {
             >
               View
             </button>
-            <button
-              type="button"
-              className="inline-flex h-9 items-center justify-center rounded-2xl bg-rose-600 px-3 text-xs font-semibold text-white hover:bg-rose-700"
-              onClick={(e) => {
-                e.stopPropagation();
-                setConfirm(r);
-              }}
-            >
-              Delete
-            </button>
+            {role === "headteacher" ? (
+              <button
+                type="button"
+                className="inline-flex h-9 items-center justify-center rounded-2xl bg-rose-600 px-3 text-xs font-semibold text-white hover:bg-rose-700"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setConfirm(r);
+                }}
+              >
+                Delete
+              </button>
+            ) : null}
           </div>
         ),
       },
     ],
-    [navigate]
+    [navigate, role]
   );
 
   return (
@@ -100,13 +89,15 @@ export default function ApplicantsList() {
         title="Applicants"
         subtitle="Search, review, and manage admission applicants."
         right={
-          <button
-            type="button"
-            className="inline-flex h-11 items-center justify-center rounded-2xl bg-[color:var(--brand)] px-5 text-sm font-semibold text-white shadow-sm hover:brightness-110"
-            onClick={() => navigate("/applicants/new")}
-          >
-            Add Applicant
-          </button>
+          role === "headteacher" || role === "assistantHeadteacher" ? (
+            <button
+              type="button"
+              className="inline-flex h-11 items-center justify-center rounded-2xl bg-[color:var(--brand)] px-5 text-sm font-semibold text-white shadow-sm hover:brightness-110"
+              onClick={() => navigate("/applicants/new")}
+            >
+              Add Applicant
+            </button>
+          ) : null
         }
       />
 
@@ -116,13 +107,24 @@ export default function ApplicantsList() {
         columns={columns}
         onRowClick={(r) => navigate(`/applicants/${r.id}`)}
         actions={
-          <button
-            type="button"
-            className="inline-flex h-10 items-center justify-center rounded-2xl bg-slate-900/5 px-3 text-sm font-semibold text-slate-800 hover:bg-slate-900/10"
-            onClick={() => navigate("/applicants?status=pending_review")}
-          >
-            Pending Review
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            {[
+              ["pending_review", "Pending Review"],
+              ["exam_scheduled", "Exam Scheduled"],
+              ["exam_completed", "Exam Completed"],
+              ["awaiting_payment", "Awaiting Payment"],
+              ["rejected", "Rejected"],
+            ].map(([k, label]) => (
+              <button
+                key={k}
+                type="button"
+                className="inline-flex h-10 items-center justify-center rounded-2xl bg-slate-900/5 px-3 text-sm font-semibold text-slate-800 hover:bg-slate-900/10"
+                onClick={() => navigate(`/applicants?status=${k}`)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         }
       />
 

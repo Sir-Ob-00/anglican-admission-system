@@ -3,9 +3,11 @@ import ApplicantForm from "../../components/forms/ApplicantForm";
 import PageHeader from "../../components/common/PageHeader";
 import Panel from "../../components/common/Panel";
 import * as applicantService from "../../services/applicantService";
+import { useAuth } from "../../context/AuthContext";
 
 export default function AddApplicant() {
   const navigate = useNavigate();
+  const { role } = useAuth();
 
   return (
     <div className="space-y-4">
@@ -19,7 +21,11 @@ export default function AddApplicant() {
               const id = created?.id || created?._id;
               navigate(id ? `/applicants/${id}` : "/applicants");
             } catch {
-              navigate("/applicants");
+              alert(
+                role === "headteacher" || role === "assistantHeadteacher"
+                  ? "Create failed. Check backend."
+                  : "You do not have permission to add applicants."
+              );
             }
           }}
         />

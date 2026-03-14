@@ -3,23 +3,23 @@ import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import PublicNavbar from "../../components/layout/PublicNavbar";
 import hero from "../../assets/images/anglican.webp";
+import { roleHomePath } from "../../utils/helpers";
 
 export default function Login() {
-  const { login, isAuthenticated } = useAuth();
+  const { login, isAuthenticated, role } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const from = location.state?.from?.pathname || "/dashboard";
+  const from = location.state?.from?.pathname || null;
 
   const {
     register,
     handleSubmit,
-    setValue,
     formState: { errors, isSubmitting },
   } = useForm({
-    defaultValues: { username: "admin", password: "admin123" },
+    defaultValues: { username: "", password: "" },
   });
 
-  if (isAuthenticated) return <Navigate to="/dashboard" replace />;
+  if (isAuthenticated) return <Navigate to={roleHomePath(role)} replace />;
 
   return (
     <div className="min-h-full bg-white">
@@ -40,45 +40,19 @@ export default function Login() {
 
             <div className="mt-8 max-w-xl rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
               <div className="text-sm font-semibold text-slate-900">Sign in</div>
-              <div className="mt-1 text-sm text-slate-600">
-                Demo shortcuts (backend optional):
-              </div>
-
-              <div className="mt-4 flex flex-wrap gap-2">
-                {[
-                  { label: "Admin", u: "admin", p: "admin123" },
-                  { label: "Headteacher", u: "headteacher", p: "head123" },
-                  { label: "Assistant", u: "assistant", p: "assist123" },
-                  { label: "Teacher", u: "teacher", p: "teach123" },
-                  { label: "Parent", u: "parent", p: "parent123" },
-                ].map((b) => (
-                  <button
-                    key={b.label}
-                    type="button"
-                    className="inline-flex h-9 items-center justify-center rounded-xl bg-slate-900/5 px-3 text-sm font-semibold text-slate-800 hover:bg-slate-900/10"
-                    onClick={() => {
-                      setValue("username", b.u);
-                      setValue("password", b.p);
-                    }}
-                  >
-                    {b.label}
-                  </button>
-                ))}
-              </div>
-
               <form
                 className="mt-6 grid gap-4"
                 onSubmit={handleSubmit(async (values) => {
-                  await login(values);
-                  navigate(from, { replace: true });
+                  const data = await login(values);
+                  navigate(from || roleHomePath(data?.user?.role), { replace: true });
                 })}
               >
                 <div>
-                  <label className="text-sm font-semibold text-slate-800">Username</label>
+                  <label className="text-sm font-semibold text-slate-800">Username or Email</label>
                   <input
                     className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-slate-900 outline-none focus:border-blue-500"
                     {...register("username", { required: "Username is required" })}
-                    placeholder="e.g., admin"
+                    placeholder="e.g., admin or staff@school.com"
                   />
                   {errors.username && (
                     <div className="mt-1 text-xs text-rose-700">{errors.username.message}</div>
@@ -91,7 +65,7 @@ export default function Login() {
                     type="password"
                     className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-slate-900 outline-none focus:border-blue-500"
                     {...register("password", { required: "Password is required" })}
-                    placeholder="••••••••"
+                    placeholder="********"
                   />
                   {errors.password && (
                     <div className="mt-1 text-xs text-rose-700">{errors.password.message}</div>

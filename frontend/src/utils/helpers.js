@@ -45,3 +45,18 @@ export function statusTone(status) {
 export function cx(...parts) {
   return parts.filter(Boolean).join(" ");
 }
+
+export function roleHomePath(role) {
+  switch (role) {
+    case "admin":
+      return "/admin";
+    case "headteacher":
+      return "/headteacher";
+    case "assistantHeadteacher":
+      return "/assistant-headteacher";
+    case "teacher":
+      return "/teacher";
+    default:
+      return "/parent";
+  }
+}

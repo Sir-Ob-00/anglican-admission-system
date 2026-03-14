@@ -3,27 +3,40 @@ import { useNavigate } from "react-router-dom";
 import PageHeader from "../../components/common/PageHeader";
 import Table from "../../components/common/Table";
 import Badge from "../../components/common/Badge";
+import Modal from "../../components/common/Modal";
 import { formatDate } from "../../utils/helpers";
 import * as admissionService from "../../services/admissionService";
-
-const demo = [
-  { id: "ad1", applicant: "Jane N. Okafor", classLevel: "Primary 3", status: "admitted", date: "2026-03-05T10:00:00.000Z" },
-  { id: "ad2", applicant: "David A. Mensah", classLevel: "Primary 5", status: "rejected", date: "2026-03-04T10:00:00.000Z" },
-];
+import { listStudents } from "../../services/studentService";
 
 export default function AdmissionsList() {
   const navigate = useNavigate();
   const [rows, setRows] = useState([]);
+  const [studentsByApplicant, setStudentsByApplicant] = useState(new Map());
+  const [selectedStudent, setSelectedStudent] = useState(null);
 
   useEffect(() => {
     let ignore = false;
     (async () => {
       try {
-        const data = await admissionService.listAdmissions();
-        const items = Array.isArray(data) ? data : data.items || [];
-        if (!ignore) setRows(items);
+        const [admissionsRes, studentsRes] = await Promise.all([
+          admissionService.listAdmissions(),
+          listStudents(),
+        ]);
+        const items = Array.isArray(admissionsRes) ? admissionsRes : admissionsRes.items || [];
+        const students = Array.isArray(studentsRes) ? studentsRes : studentsRes.items || [];
+        if (!ignore) {
+          setRows(items);
+          const map = new Map();
+          for (const s of students) {
+            if (s.applicant) map.set(String(s.applicant), s);
+          }
+          setStudentsByApplicant(map);
+        }
       } catch {
-        if (!ignore) setRows(demo);
+        if (!ignore) {
+          setRows([]);
+          setStudentsByApplicant(new Map());
+        }
       }
     })();
     return () => {
@@ -45,8 +58,25 @@ export default function AdmissionsList() {
         ),
       },
       { key: "date", header: "Date", render: (r) => formatDate(r.date) },
+      {
+        key: "actions",
+        header: "Actions",
+        render: (r) => (
+          <button
+            type="button"
+            className="inline-flex h-9 items-center justify-center rounded-2xl bg-[color:var(--brand)] px-3 text-xs font-semibold text-white hover:brightness-110"
+            onClick={(e) => {
+              e.stopPropagation();
+              const student = studentsByApplicant.get(String(r.applicantId || ""));
+              if (student) setSelectedStudent(student);
+            }}
+          >
+            View Student
+          </button>
+        ),
+      },
     ],
-    []
+    [studentsByApplicant]
   );
 
   return (
@@ -60,10 +90,38 @@ export default function AdmissionsList() {
           classLevel: x.applicant?.classApplyingFor || "—",
           status: "admitted",
           date: x.approvedAt || x.createdAt,
+          applicantId: x.applicant?._id,
         }))}
         columns={columns}
         onRowClick={(r) => navigate(`/admissions/${r.id}`)}
       />
+
+      <Modal
+        open={Boolean(selectedStudent)}
+        title="Student Information"
+        onClose={() => setSelectedStudent(null)}
+      >
+        {selectedStudent ? (
+          <div className="space-y-2 text-sm text-slate-700">
+            <div>
+              <span className="font-semibold text-slate-900">Name:</span>{" "}
+              {selectedStudent.fullName || "—"}
+            </div>
+            <div>
+              <span className="font-semibold text-slate-900">Admission No.:</span>{" "}
+              {selectedStudent.admissionNumber || "—"}
+            </div>
+            <div>
+              <span className="font-semibold text-slate-900">Class:</span>{" "}
+              {selectedStudent.classAssigned?.name || "—"}
+            </div>
+            <div>
+              <span className="font-semibold text-slate-900">Parent:</span>{" "}
+              {selectedStudent.parentUser?.name || selectedStudent.parentUser?.username || "—"}
+            </div>
+          </div>
+        ) : null}
+      </Modal>
     </div>
   );
 }

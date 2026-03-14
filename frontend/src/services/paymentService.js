@@ -14,3 +14,8 @@ export async function verifyPayment(payload) {
   const res = await api.post("/api/payments/verify", payload);
   return res.data;
 }
+
+export async function downloadReceipt(id) {
+  const res = await api.get(`/api/payments/${id}/receipt`, { responseType: "blob" });
+  return res.data;
+}

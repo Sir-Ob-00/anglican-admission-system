@@ -8,15 +8,17 @@ export default function Modal({
   onClose,
   footer,
   closeOnBackdrop = true,
+  closeOnEscape = true,
 }) {
   useEffect(() => {
     if (!open) return;
     function onKey(e) {
+      if (!closeOnEscape) return;
       if (e.key === "Escape") onClose?.();
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  }, [open, onClose, closeOnEscape]);
 
   if (!open) return null;
 
@@ -45,7 +47,7 @@ export default function Modal({
             onClick={onClose}
             aria-label="Close dialog"
           >
-            ✕
+            X
           </button>
         </div>
         <div className="px-5 py-4">{children}</div>
